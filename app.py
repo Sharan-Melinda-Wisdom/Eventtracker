@@ -1,119 +1,203 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 
 DATA_FILE = "events.csv"
 
-# Utility functions
+st.set_page_config(page_title="Campus Event Tracker", page_icon="📅", layout="wide")
+
+# -----------------------------
+# Utility Functions
+# -----------------------------
 
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
             df = pd.read_csv(DATA_FILE, parse_dates=["datetime"])
             return df
-        except Exception:
-            st.error("Failed to read data file. The format may be corrupted.")
-            return pd.DataFrame(columns=["title", "datetime", "category", "description"])
-    else:
-        return pd.DataFrame(columns=["title", "datetime", "category", "description"])
+        except:
+            return pd.DataFrame(columns=["title","datetime","category","description"])
+    return pd.DataFrame(columns=["title","datetime","category","description"])
 
 
-def save_data(df: pd.DataFrame):
-    df.to_csv(DATA_FILE, index=False)
+def save_data(df):
+    df.to_csv(DATA_FILE,index=False)
 
 
-def add_event(title, dt, category, description):
+def add_event(title,dt,category,description):
     df = load_data()
-    df = df.append({
-        "title": title,
-        "datetime": dt,
-        "category": category,
-        "description": description,
-    }, ignore_index=True)
+
+    new_event = pd.DataFrame({
+        "title":[title],
+        "datetime":[dt],
+        "category":[category],
+        "description":[description]
+    })
+
+    df = pd.concat([df,new_event],ignore_index=True)
+
     save_data(df)
     return df
 
 
-def filter_upcoming(df, days=7):
-    now = pd.Timestamp.now()
-    future = now + pd.Timedelta(days=days)
-    return df[(df["datetime"] >= now) & (df["datetime"] <= future)]
+def delete_event(title):
+    df = load_data()
+    df = df[df["title"]!=title]
+    save_data(df)
+    return df
 
+
+# -----------------------------
+# MAIN APP
+# -----------------------------
 
 def main():
-    st.title("Smart Campus Event & Deadline Tracker")
-    st.markdown(
-        "An interactive real-time tracker for academic and campus events. Add events, filter, and inspect analytics."
-    )
 
-    # Sidebar for adding events
-    st.sidebar.header("Add new event")
-    with st.sidebar.form(key="event_form"):
-        title = st.text_input("Title")
-        date = st.date_input("Date", datetime.today())
-        time = st.time_input("Time", datetime.now().time())
-        category = st.selectbox(
-            "Category", ["Academic", "Campus", "Personal", "Other"]
-        )
-        description = st.text_area("Description")
-        submitted = st.form_submit_button("Add Event")
+    st.title("📅 Smart Campus Event Tracker")
+    st.caption("Track Academic, Campus and Personal Events")
 
-    if submitted:
-        dt = datetime.combine(date, time)
-        df = add_event(title, dt, category, description)
-        st.success(f"Event '{title}' added for {dt}")
-
-    # Load data
     df = load_data()
-    if df.empty:
-        st.info("No events found. Add one using the sidebar.")
-        return
 
-    # Filters
-    with st.expander("Filters"):
-        col1, col2 = st.columns(2)
-        with col1:
-            filt_cat = st.multiselect("Category", options=df["category"].unique(), default=df["category"].unique())
-        with col2:
-            days = st.slider("Within days", 1, 365, 30)
-        start_date = st.date_input("Start date", df["datetime"].min().date())
-        end_date = st.date_input("End date", df["datetime"].max().date())
+    # -----------------------------
+    # Sidebar - Add Event
+    # -----------------------------
 
-    mask = df["category"].isin(filt_cat)
-    mask &= df["datetime"].dt.date.between(start_date, end_date)
-    df_filtered = df[mask].sort_values("datetime")
+    st.sidebar.header("➕ Add Event")
 
-    # Alert for imminent events
+    with st.sidebar.form("event_form"):
+
+        title = st.text_input("Event Title")
+
+        date = st.date_input("Date")
+
+        time = st.time_input("Time")
+
+        category = st.selectbox(
+            "Category",
+            ["Academic","Campus","Personal","Other"]
+        )
+
+        description = st.text_area("Description")
+
+        submit = st.form_submit_button("Add Event")
+
+    if submit:
+
+        dt = datetime.combine(date,time)
+
+        df = add_event(title,dt,category,description)
+
+        st.success("Event Added Successfully")
+
+    # -----------------------------
+    # Dashboard Metrics
+    # -----------------------------
+
+    total = len(df)
+    academic = len(df[df["category"]=="Academic"])
+    campus = len(df[df["category"]=="Campus"])
+    personal = len(df[df["category"]=="Personal"])
+
+    c1,c2,c3,c4 = st.columns(4)
+
+    c1.metric("Total Events",total)
+    c2.metric("Academic Events",academic)
+    c3.metric("Campus Events",campus)
+    c4.metric("Personal Events",personal)
+
+    st.divider()
+
+    # -----------------------------
+    # Search
+    # -----------------------------
+
+    search = st.text_input("🔍 Search Event")
+
+    if search:
+        df = df[df["title"].str.contains(search,case=False)]
+
+    # -----------------------------
+    # Delete Event
+    # -----------------------------
+
+    st.subheader("🗑 Delete Event")
+
+    if not df.empty:
+
+        event_to_delete = st.selectbox(
+            "Select Event",
+            df["title"].unique()
+        )
+
+        if st.button("Delete Event"):
+
+            delete_event(event_to_delete)
+
+            st.success("Event Deleted")
+
+            st.rerun()
+
+    # -----------------------------
+    # Upcoming Events Alert
+    # -----------------------------
+
     now = pd.Timestamp.now()
-    soon = now + pd.Timedelta(days=1)
-    upcoming_soon = df[(df["datetime"] >= now) & (df["datetime"] <= soon)]
-    if not upcoming_soon.empty:
-        st.warning("⚠️ Upcoming events within next 24 hours:")
-        for _, row in upcoming_soon.sort_values("datetime").iterrows():
-            st.write(f"**{row['title']}** ({row['category']}) - {row['datetime']}\n{row['description']}")
+    tomorrow = now + pd.Timedelta(days=1)
 
-    # Display table
-    st.subheader("Events")
-    st.dataframe(df_filtered)
+    upcoming = df[(df["datetime"]>=now)&(df["datetime"]<=tomorrow)]
 
-    # Analytics
-    st.subheader("Analytics")
-    colA, colB = st.columns(2)
-    with colA:
-        count_by_cat = df_filtered["category"].value_counts().reset_index()
-        count_by_cat.columns = ["category", "count"]
-        fig1 = px.bar(count_by_cat, x="category", y="count", title="Events by Category")
-        st.plotly_chart(fig1, use_container_width=True)
-    with colB:
-        if not df_filtered.empty:
-            fig2 = px.histogram(df_filtered, x="datetime", nbins=20, title="Events over Time")
-            st.plotly_chart(fig2, use_container_width=True)
+    if not upcoming.empty:
 
-    # Real-time refresh button
-    if st.button("Refresh"):
-        st.rerun()
+        st.warning("⚠ Upcoming Events within 24 Hours")
+
+        for _,row in upcoming.iterrows():
+            st.write(f"**{row['title']}** ({row['category']}) - {row['datetime']}")
+
+    # -----------------------------
+    # Events Table
+    # -----------------------------
+
+    st.subheader("📋 Event List")
+
+    st.dataframe(df.sort_values("datetime"),use_container_width=True)
+
+    # -----------------------------
+    # Charts
+    # -----------------------------
+
+    st.subheader("📊 Analytics")
+
+    col1,col2 = st.columns(2)
+
+    with col1:
+
+        cat_count = df["category"].value_counts().reset_index()
+
+        cat_count.columns = ["Category","Count"]
+
+        fig1 = px.bar(
+            cat_count,
+            x="Category",
+            y="Count",
+            title="Events by Category"
+        )
+
+        st.plotly_chart(fig1,use_container_width=True)
+
+    with col2:
+
+        if not df.empty:
+
+            fig2 = px.histogram(
+                df,
+                x="datetime",
+                nbins=20,
+                title="Events Timeline"
+            )
+
+            st.plotly_chart(fig2,use_container_width=True)
 
 
 if __name__ == "__main__":
