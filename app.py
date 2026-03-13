@@ -6,7 +6,7 @@ import os
 
 DATA_FILE = "events.csv"
 
-st.set_page_config(page_title="Campus Event Tracker", page_icon="📅", layout="wide")
+st.set_page_config(page_title="Campus Event Tracker", page_icon="", layout="wide")
 
 # -----------------------------
 # Utility Functions
@@ -55,7 +55,7 @@ def delete_event(title):
 
 def main():
 
-    st.title("📅 Smart Campus Event Tracker")
+    st.title("Smart Campus Event Tracker")
     st.caption("Track Academic, Campus and Personal Events")
 
     df = load_data()
@@ -113,7 +113,7 @@ def main():
     # Search
     # -----------------------------
 
-    search = st.text_input("🔍 Search Event")
+    search = st.text_input("Search Event")
 
     if search:
         df = df[df["title"].str.contains(search,case=False)]
@@ -122,7 +122,7 @@ def main():
     # Delete Event
     # -----------------------------
 
-    st.subheader("🗑 Delete Event")
+    st.subheader("Delete Event")
 
     if not df.empty:
 
@@ -150,7 +150,7 @@ def main():
 
     if not upcoming.empty:
 
-        st.warning("⚠ Upcoming Events within 24 Hours")
+        st.warning("Upcoming Events within 24 Hours")
 
         for _,row in upcoming.iterrows():
             st.write(f"**{row['title']}** ({row['category']}) - {row['datetime']}")
@@ -159,7 +159,7 @@ def main():
     # Events Table
     # -----------------------------
 
-    st.subheader("📋 Event List")
+    st.subheader("Event List")
 
     st.dataframe(df.sort_values("datetime"),use_container_width=True)
 
@@ -167,7 +167,7 @@ def main():
     # Charts
     # -----------------------------
 
-    st.subheader("📊 Analytics")
+    st.subheader("Analytics")
 
     col1,col2 = st.columns(2)
 
@@ -202,3 +202,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
