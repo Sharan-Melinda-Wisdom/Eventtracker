@@ -45,7 +45,7 @@ def filter_upcoming(df, days=7):
 
 
 def main():
-    st.title("📅 Smart Campus Event & Deadline Tracker")
+    st.title("Smart Campus Event & Deadline Tracker")
     st.markdown(
         "An interactive real-time tracker for academic and campus events. Add events, filter, and inspect analytics."
     )
@@ -115,8 +115,10 @@ def main():
 
     # Real-time refresh button
     if st.button("Refresh"):
-        st.experimental_rerun()
+        st.rerun()
+
 
 
 if __name__ == "__main__":
     main()
+
